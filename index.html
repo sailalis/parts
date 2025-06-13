@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Part Number Lookup</title>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+</head>
+<body>
+  <h2>🔍 Part Number Lookup</h2>
+  <input type="text" id="searchBox" placeholder="Start typing part number..." style="margin-bottom: 10px; width: 300px; padding: 8px;">
+
+  <table id="partTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th>Part Number</th>
+        <th>Description</th>
+        <th>Category</th>
+        <!-- Add more <th> headers if your data has more fields -->
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const API_URL = https://sheet2api.com/v1/PMe86EohSZy1/partscatalog;
+
+    $(document).ready(function() {
+      fetch(API_URL)
+        .then(response => response.json())
+        .then(data => {
+          const formattedData = data.map(item => [
+            item.PartNumber || '',
+            item.Description || '',
+            item.Category || ''
+          ]);
+
+          const table = $('#partTable').DataTable({
+            data: formattedData,
+            columns: [
+              { title: "Part Number" },
+              { title: "Description" },
+              { title: "Category" }
+            ]
+          });
+
+          $('#searchBox').on('keyup', function () {
+            table.search(this.value).draw();
+          });
+        })
+        .catch(error => {
+          console.error('Error loading data:', error);
+        });
+    });
+  </script>
+</body>
+</html>
