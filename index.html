@@ -58,6 +58,7 @@
         header: true,
         complete: function(results) {
           const data = results.data;
+          console.log('Parsed data:', data);
 
           const formattedData = data.map(item => [
             item.JSF || '',
