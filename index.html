@@ -11,7 +11,7 @@
   <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
 
-  <!-- PapaParse -->
+  <!-- PapaParse CSV Parser -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
   <style>
@@ -50,15 +50,15 @@
   </table>
 
   <script>
-    const CSV_URL = 'https://github.com/sailalis/parts/raw/refs/heads/main/sample.csv';
+    const CSV_URL = 'https://github.com/sailalis/parts/raw/refs/heads/main/partscatalog.csv';
 
     $(document).ready(function () {
       Papa.parse(CSV_URL, {
         download: true,
         header: true,
+        skipEmptyLines: true,
         complete: function(results) {
           const data = results.data;
-          console.log('Parsed data:', data);
 
           const formattedData = data.map(item => [
             item.JSF || '',
@@ -73,7 +73,7 @@
             item.SLC || ''
           ]);
 
-          const table = $('#partTable').DataTable({
+          $('#partTable').DataTable({
             data: formattedData,
             columns: [
               { title: "JSF" },
@@ -90,7 +90,7 @@
           });
 
           $('#searchBox').on('keyup', function () {
-            table.search(this.value).draw();
+            $('#partTable').DataTable().search(this.value).draw();
           });
         }
       });
