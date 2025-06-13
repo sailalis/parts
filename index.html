@@ -1,58 +1,100 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Part Number Lookup</title>
+  <title>Part Lookup</title>
   <meta charset="utf-8">
+
+  <!-- DataTables CSS -->
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+
+  <!-- jQuery + DataTables JS -->
   <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+
+  <!-- PapaParse -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    #searchBox {
+      margin-bottom: 15px;
+      padding: 8px;
+      width: 300px;
+    }
+  </style>
 </head>
 <body>
-  <h2>🔍 Part Number Lookup</h2>
-  <input type="text" id="searchBox" placeholder="Start typing part number..." style="margin-bottom: 10px; width: 300px; padding: 8px;">
+
+  <h2>🔍 Part Catalog Lookup</h2>
+  <input type="text" id="searchBox" placeholder="Search by any field...">
 
   <table id="partTable" class="display" style="width:100%">
     <thead>
       <tr>
-        <th>Part Number</th>
-        <th>Description</th>
-        <th>Category</th>
-        <!-- Add more <th> headers if your data has more fields -->
+        <th>JSF</th>
+        <th>PN</th>
+        <th>NOUN</th>
+        <th>SMR</th>
+        <th>EEL</th>
+        <th>REP</th>
+        <th>SER</th>
+        <th>BAT</th>
+        <th>PMI</th>
+        <th>SLC</th>
       </tr>
     </thead>
     <tbody></tbody>
   </table>
 
   <script>
-    const API_URL = https://sheet2api.com/v1/PMe86EohSZy1/partscatalog;
+    const CSV_URL = 'https://github.com/sailalis/parts/raw/refs/heads/main/partscatalog.csv';
 
-    $(document).ready(function() {
-      fetch(API_URL)
-        .then(response => response.json())
-        .then(data => {
+    $(document).ready(function () {
+      Papa.parse(CSV_URL, {
+        download: true,
+        header: true,
+        complete: function(results) {
+          const data = results.data;
+
           const formattedData = data.map(item => [
-            item.PartNumber || '',
-            item.Description || '',
-            item.Category || ''
+            item.JSF || '',
+            item.PN || '',
+            item.NOUN || '',
+            item.SMR || '',
+            item.EEL || '',
+            item.REP || '',
+            item.SER || '',
+            item.BAT || '',
+            item.PMI || '',
+            item.SLC || ''
           ]);
 
           const table = $('#partTable').DataTable({
             data: formattedData,
             columns: [
-              { title: "Part Number" },
-              { title: "Description" },
-              { title: "Category" }
+              { title: "JSF" },
+              { title: "PN" },
+              { title: "NOUN" },
+              { title: "SMR" },
+              { title: "EEL" },
+              { title: "REP" },
+              { title: "SER" },
+              { title: "BAT" },
+              { title: "PMI" },
+              { title: "SLC" }
             ]
           });
 
           $('#searchBox').on('keyup', function () {
             table.search(this.value).draw();
           });
-        })
-        .catch(error => {
-          console.error('Error loading data:', error);
-        });
+        }
+      });
     });
   </script>
+
 </body>
 </html>
