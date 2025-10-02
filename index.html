@@ -10,22 +10,11 @@
 
     #app { display: flex; flex-direction: column; height: 100%; width: 100%; min-width: 0; }
 
-    header { 
-      flex: 0 0 auto; 
-      padding: 12px; 
-      background: #f7f7f7; 
-      border-bottom: 1px solid #e5e5e5; 
-      text-align: center; 
-    }
+    header { flex: 0 0 auto; padding: 12px; background: #f7f7f7; border-bottom: 1px solid #e5e5e5; text-align: center; }
     header h1 { font-size: 18px; margin-bottom: 8px; }
 
     .search-container { display: inline-block; text-align: center; }
-    .search-container input {
-      padding: 10px;
-      font-size: 14px;
-      width: 260px;
-      max-width: 90%;
-    }
+    .search-container input { padding: 10px; font-size: 14px; width: 260px; max-width: 90%; }
 
     .filters { margin-top: 8px; font-size: 13px; text-align: center; }
     .filters label { display: inline-flex; align-items: center; gap: 4px; }
@@ -34,40 +23,27 @@
 
     main { flex: 1 1 auto; overflow-y: auto; overflow-x: auto; background: #fff; padding: 0; text-align: center; }
 
-    /* Center the table and let it size to content */
-    table {
-      border-collapse: collapse;
-      border-spacing: 0;
-      table-layout: auto;
-      margin: 0 auto; /* center the table */
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 6px;
-      font-size: 13px;
-      vertical-align: top;
-      white-space: nowrap;
-      text-align: left; /* default left align */
-    }
+    table { border-collapse: collapse; border-spacing: 0; table-layout: auto; margin: 0 auto; }
+    th, td { border: 1px solid #ddd; padding: 6px; font-size: 13px; vertical-align: top; white-space: nowrap; text-align: left; }
     td.noun { white-space: normal; word-break: break-word; }
 
-    /* Force consistent widths + center text for these columns */
+    /* Fixed group: widths tied to --flagcol, contents centered */
     th.smr, td.smr,
     th.eel, td.eel,
     th.turnin, td.turnin,
     th.serialized, td.serialized {
-      min-width: 90px; 
-      max-width: 90px;
-      text-align: center;   /* center their contents */
+      width: var(--flagcol, 90px);
+      text-align: center;
     }
 
-    thead th {
-      position: sticky;
-      top: 0;
-      background: #f7f7f7;
-      z-index: 5;
-      box-shadow: 0 2px 0 #ddd;
+    /* Name group: widths tied to --namecol */
+    th.nomenclature, td.nomenclature,
+    th.jsfpn, td.jsfpn,
+    th.mfrpn, td.mfrpn {
+      width: var(--namecol, auto);
     }
+
+    thead th { position: sticky; top: 0; background: #f7f7f7; z-index: 5; box-shadow: 0 2px 0 #ddd; }
     .hit { background: #fffae6; }
 
     @media (max-width: 900px) {
@@ -91,10 +67,7 @@
         <input id="q" placeholder="Start typing…" autofocus />
       </div>
       <div class="filters">
-        <label>
-          <input type="checkbox" id="hideSmrX" />
-          Hide non-procurable assets
-        </label>
+        <label><input type="checkbox" id="hideSmrX" /> Hide non-procurable assets</label>
       </div>
       <div class="meta" id="meta">Loading…</div>
     </header>
@@ -108,66 +81,94 @@
   </div>
 
   <script>
-    const CSV_URL = 'https://raw.githubusercontent.com/sailalis/parts/refs/heads/main/partscatalognew.csv';
+    const CSV_URL = 'https://raw.githubusercontent.com/sailalis/parts/refs/heads/main/partscatalog.csv';
     const MAX_ROWS = 200;
 
-    let rows = [];
-    let headers = [];
-    let smrKey = null;
+    let rows = [], headers = [], smrKey = null;
 
-    function debounce(fn, ms) { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+    const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, ""); // strip spaces, slashes, dashes, etc.
 
-    function hi(text, q) {
+    function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+
+    function hi(text, q){
       if (!q) return text;
       const i = text.toLowerCase().indexOf(q.toLowerCase());
       if (i === -1) return text;
-      return text.slice(0, i) + '<span class="hit">' + text.slice(i, i+q.length) + '</span>' + text.slice(i+q.length);
+      return text.slice(0,i)+'<span class="hit">'+text.slice(i,i+q.length)+'</span>'+text.slice(i+q.length);
     }
 
-    function render(data, q) {
+    function assignHeaderClasses(th, hNorm) {
+      if (["smr","eel","turnin","serialized"].includes(hNorm)) th.classList.add(hNorm);
+      if (hNorm === "turnin") th.classList.add("turnin");
+      if (hNorm === "nomenclature") th.classList.add("nomenclature");
+      if (hNorm === "jsfpn") th.classList.add("jsfpn");
+      if (hNorm === "mfrpn") th.classList.add("mfrpn");
+    }
+    function assignCellClasses(td, hNorm) {
+      if (hNorm === "noun") td.classList.add("noun");
+      if (["smr","eel","turnin","serialized"].includes(hNorm)) td.classList.add(hNorm);
+      if (hNorm === "nomenclature") td.classList.add("nomenclature");
+      if (hNorm === "jsfpn") td.classList.add("jsfpn");
+      if (hNorm === "mfrpn") td.classList.add("mfrpn");
+    }
+
+    function render(data, q){
       const thead = document.getElementById('thead');
       const tbody = document.getElementById('tbody');
-      if (thead.childElementCount === 0 && headers.length) {
+
+      if (thead.childElementCount === 0 && headers.length){
         const tr = document.createElement('tr');
-        headers.forEach(h => {
+        headers.forEach(h=>{
           const th = document.createElement('th');
           th.textContent = h;
-          // add column-specific classes
-          const cls = h.toLowerCase().replace(/\s+/g,'');
-          if (['smr','eel','turn-in','turnin','serialized'].includes(cls)) {
-            if (cls === 'turn-in') th.classList.add('turnin');
-            else th.classList.add(cls);
-          }
+          assignHeaderClasses(th, norm(h));
           tr.appendChild(th);
         });
         thead.appendChild(tr);
       }
+
       tbody.innerHTML = '';
-      data.slice(0, MAX_ROWS).forEach(r => {
+      data.slice(0, MAX_ROWS).forEach(r=>{
         const tr = document.createElement('tr');
-        headers.forEach(h => {
+        headers.forEach(h=>{
           const td = document.createElement('td');
-          const val = String(r[h] ?? '');
-          if (h.toLowerCase() === 'noun') td.classList.add('noun');
-          const cls = h.toLowerCase().replace(/\s+/g,'');
-          if (['smr','eel','turn-in','turnin','serialized'].includes(cls)) {
-            if (cls === 'turn-in') td.classList.add('turnin');
-            else td.classList.add(cls);
-          }
-          td.innerHTML = hi(val, q);
+          assignCellClasses(td, norm(h));
+          td.innerHTML = hi(String(r[h] ?? ''), q);
           tr.appendChild(td);
         });
         tbody.appendChild(tr);
       });
+
       document.getElementById('meta').textContent =
         `Showing ${Math.min(data.length, MAX_ROWS)} of ${data.length} matches` +
         (data.length > MAX_ROWS ? ' (refine to see more)' : '');
+
+      enforceColumnWidths();
     }
 
-    function applyFilters(data) {
+    // Make SMR/EEL/TURN-IN match SERIALIZED width. Make JSF P/N and MFR P/N match NOMENCLATURE width.
+    function enforceColumnWidths(){
+      const table = document.getElementById('tbl');
+      const headRow = table.tHead?.rows[0];
+      if (!headRow) return;
+
+      // Measure SERIALIZED header width (fallback 90px)
+      const serializedTh = headRow.querySelector('th.serialized');
+      const flagWidth = Math.max(90, serializedTh ? Math.ceil(serializedTh.getBoundingClientRect().width) : 90);
+      table.style.setProperty('--flagcol', flagWidth + 'px');
+
+      // Measure NOMENCLATURE header width for name group
+      const nameTh = headRow.querySelector('th.nomenclature');
+      if (nameTh){
+        const nameWidth = Math.ceil(nameTh.getBoundingClientRect().width);
+        table.style.setProperty('--namecol', nameWidth + 'px');
+      }
+    }
+
+    function applyFilters(data){
       const hideSmrX = document.getElementById('hideSmrX').checked;
-      if (hideSmrX && smrKey) {
-        return data.filter(r => {
+      if (hideSmrX && smrKey){
+        return data.filter(r=>{
           const v = String(r[smrKey] ?? '');
           return !v || v[0].toLowerCase() !== 'x';
         });
@@ -175,16 +176,16 @@
       return data;
     }
 
-    function applyQuery(data, q) {
+    function applyQuery(data, q){
       if (!q) return data;
       const ql = q.toLowerCase();
       return data.filter(r => headers.some(h => String(r[h] ?? '').toLowerCase().includes(ql)));
     }
 
-    function updateView() {
+    function updateView(){
       const q = document.getElementById('q').value.trim();
       const afterFilter = applyFilters(rows);
-      const afterQuery  = applyQuery(afterFilter, q);
+      const afterQuery = applyQuery(afterFilter, q);
       render(afterQuery, q);
     }
 
@@ -192,21 +193,10 @@
     document.getElementById('hideSmrX').addEventListener('change', updateView);
 
     Papa.parse(CSV_URL, {
-      download: true,
-      header: true,
-      worker: true,
-      skipEmptyLines: true,
+      download: true, header: true, worker: true, skipEmptyLines: true,
       complete: (res) => {
         rows = res.data;
         headers = res.meta.fields || Object.keys(rows[0] || {});
-        smrKey = headers.find(h => h.toLowerCase() === 'smr') || null;
+        smrKey = headers.find(h => norm(h) === 'smr') || null;
         document.getElementById('meta').textContent = `Loaded ${rows.length.toLocaleString()} rows`;
-        updateView();
-      },
-      error: (err) => {
-        document.getElementById('meta').textContent = 'Failed to load CSV: ' + err;
-      }
-    });
-  </script>
-</body>
-</html>
+        upd
