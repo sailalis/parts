@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Parts Catalog Search</title>
+  <title>Alice Parts Catalog</title>
   <style>
     body { font-family: system-ui, sans-serif; margin: 24px; }
     input { width: 100%; padding: 12px; font-size: 16px; }
@@ -16,9 +16,9 @@
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
-  <h1>Parts Catalog Search</h1>
-  <input id="q" placeholder="Type to search any column…" autofocus />
-  <div class="meta" id="meta">Loading CSV…</div>
+  <h1>Alice Parts Catalog</h1>
+  <input id="q" placeholder="Start typing…" autofocus />
+  <div class="meta" id="meta">Loading…</div>
   <table id="tbl">
     <thead id="thead"></thead>
     <tbody id="tbody"></tbody>
@@ -26,8 +26,8 @@
 
   <script>
     // Config
-    const CSV_URL = 'partscatalog.csv'; // or 'sample.csv' while testing
-    const MAX_ROWS = 200;               // limit render for speed; adjust as needed
+    const CSV_URL = 'partscatalog.csv';
+    const MAX_ROWS = 200;
 
     let rows = [];
     let headers = [];
