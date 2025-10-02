@@ -21,13 +21,15 @@
 
     .meta { margin-top: 6px; color: #555; font-size: 12px; text-align: center; }
 
-    main { flex: 1 1 auto; overflow-y: auto; overflow-x: auto; background: #fff; padding: 0; text-align: center; }
+    main { flex: 1 1 auto; overflow-y: auto; background:#fff; padding:0; text-align:center; }
+    .table-wrap { display:inline-block; position:relative; }
+    .table-scale { transform-origin: top center; will-change: transform, height; }
 
     table { border-collapse: collapse; border-spacing: 0; table-layout: auto; margin: 0 auto; }
     th, td { border: 1px solid #ddd; padding: 6px; font-size: 13px; vertical-align: top; white-space: nowrap; text-align: left; }
     td.noun { white-space: normal; word-break: break-word; }
 
-    /* Fixed group: widths tied to --flagcol, contents centered */
+    /* Grouped fixed-width centered columns */
     th.smr, td.smr,
     th.eel, td.eel,
     th.turnin, td.turnin,
@@ -36,7 +38,7 @@
       text-align: center;
     }
 
-    /* Name group: widths tied to --namecol */
+    /* Name group tied to NOMENCLATURE */
     th.nomenclature, td.nomenclature,
     th.jsfpn, td.jsfpn,
     th.mfrpn, td.mfrpn {
@@ -63,140 +65,69 @@
   <div id="app">
     <header>
       <h1>Alice Parts Catalog</h1>
-      <div class="search-container">
-        <input id="q" placeholder="Start typing…" autofocus />
-      </div>
-      <div class="filters">
-        <label><input type="checkbox" id="hideSmrX" /> Hide non-procurable assets</label>
-      </div>
+      <div class="search-container"><input id="q" placeholder="Start typing…" autofocus /></div>
+      <div class="filters"><label><input type="checkbox" id="hideSmrX" /> Hide non-procurable assets</label></div>
       <div class="meta" id="meta">Loading…</div>
     </header>
 
     <main>
-      <table id="tbl" aria-label="Search results">
-        <thead id="thead"></thead>
-        <tbody id="tbody"></tbody>
-      </table>
+      <div id="tableWrap" class="table-wrap">
+        <div id="tableScale" class="table-scale">
+          <table id="tbl" aria-label="Search results">
+            <thead id="thead"></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </div>
     </main>
   </div>
 
   <script>
-    const CSV_URL = 'https://raw.githubusercontent.com/sailalis/parts/refs/heads/main/partscatalog.csv';
+    const CSV_URL = 'https://raw.githubusercontent.com/sailalis/parts/refs/heads/main/partscatalognew.csv';
     const MAX_ROWS = 200;
 
     let rows = [], headers = [], smrKey = null;
-
-    const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, ""); // strip spaces, slashes, dashes, etc.
+    const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
 
     function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+    function hi(text, q){ if (!q) return text; const i=text.toLowerCase().indexOf(q.toLowerCase()); if(i===-1)return text; return text.slice(0,i)+'<span class="hit">'+text.slice(i,i+q.length)+'</span>'+text.slice(i+q.length); }
 
-    function hi(text, q){
-      if (!q) return text;
-      const i = text.toLowerCase().indexOf(q.toLowerCase());
-      if (i === -1) return text;
-      return text.slice(0,i)+'<span class="hit">'+text.slice(i,i+q.length)+'</span>'+text.slice(i+q.length);
+    function assignHeaderClasses(th,h){ if(["smr","eel","turnin","serialized"].includes(h)) th.classList.add(h); if(h==="nomenclature") th.classList.add("nomenclature"); if(h==="jsfpn") th.classList.add("jsfpn"); if(h==="mfrpn") th.classList.add("mfrpn"); }
+    function assignCellClasses(td,h){ if(h==="noun") td.classList.add("noun"); if(["smr","eel","turnin","serialized"].includes(h)) td.classList.add(h); if(h==="nomenclature") td.classList.add("nomenclature"); if(h==="jsfpn") td.classList.add("jsfpn"); if(h==="mfrpn") td.classList.add("mfrpn"); }
+
+    function render(data,q){
+      const thead=document.getElementById('thead'); const tbody=document.getElementById('tbody');
+      if(thead.childElementCount===0&&headers.length){ const tr=document.createElement('tr'); headers.forEach(h=>{ const th=document.createElement('th'); th.textContent=h; assignHeaderClasses(th,norm(h)); tr.appendChild(th); }); thead.appendChild(tr); }
+      tbody.innerHTML=''; data.slice(0,MAX_ROWS).forEach(r=>{ const tr=document.createElement('tr'); headers.forEach(h=>{ const td=document.createElement('td'); assignCellClasses(td,norm(h)); td.innerHTML=hi(String(r[h]??''),q); tr.appendChild(td); }); tbody.appendChild(tr); });
+      document.getElementById('meta').textContent=`Showing ${Math.min(data.length,MAX_ROWS)} of ${data.length} matches`+(data.length>MAX_ROWS?' (refine to see more)':'');
+      enforceColumnWidths(); fitTable();
     }
 
-    function assignHeaderClasses(th, hNorm) {
-      if (["smr","eel","turnin","serialized"].includes(hNorm)) th.classList.add(hNorm);
-      if (hNorm === "turnin") th.classList.add("turnin");
-      if (hNorm === "nomenclature") th.classList.add("nomenclature");
-      if (hNorm === "jsfpn") th.classList.add("jsfpn");
-      if (hNorm === "mfrpn") th.classList.add("mfrpn");
-    }
-    function assignCellClasses(td, hNorm) {
-      if (hNorm === "noun") td.classList.add("noun");
-      if (["smr","eel","turnin","serialized"].includes(hNorm)) td.classList.add(hNorm);
-      if (hNorm === "nomenclature") td.classList.add("nomenclature");
-      if (hNorm === "jsfpn") td.classList.add("jsfpn");
-      if (hNorm === "mfrpn") td.classList.add("mfrpn");
-    }
-
-    function render(data, q){
-      const thead = document.getElementById('thead');
-      const tbody = document.getElementById('tbody');
-
-      if (thead.childElementCount === 0 && headers.length){
-        const tr = document.createElement('tr');
-        headers.forEach(h=>{
-          const th = document.createElement('th');
-          th.textContent = h;
-          assignHeaderClasses(th, norm(h));
-          tr.appendChild(th);
-        });
-        thead.appendChild(tr);
-      }
-
-      tbody.innerHTML = '';
-      data.slice(0, MAX_ROWS).forEach(r=>{
-        const tr = document.createElement('tr');
-        headers.forEach(h=>{
-          const td = document.createElement('td');
-          assignCellClasses(td, norm(h));
-          td.innerHTML = hi(String(r[h] ?? ''), q);
-          tr.appendChild(td);
-        });
-        tbody.appendChild(tr);
-      });
-
-      document.getElementById('meta').textContent =
-        `Showing ${Math.min(data.length, MAX_ROWS)} of ${data.length} matches` +
-        (data.length > MAX_ROWS ? ' (refine to see more)' : '');
-
-      enforceColumnWidths();
-    }
-
-    // Make SMR/EEL/TURN-IN match SERIALIZED width. Make JSF P/N and MFR P/N match NOMENCLATURE width.
     function enforceColumnWidths(){
-      const table = document.getElementById('tbl');
-      const headRow = table.tHead?.rows[0];
-      if (!headRow) return;
-
-      // Measure SERIALIZED header width (fallback 90px)
-      const serializedTh = headRow.querySelector('th.serialized');
-      const flagWidth = Math.max(90, serializedTh ? Math.ceil(serializedTh.getBoundingClientRect().width) : 90);
-      table.style.setProperty('--flagcol', flagWidth + 'px');
-
-      // Measure NOMENCLATURE header width for name group
-      const nameTh = headRow.querySelector('th.nomenclature');
-      if (nameTh){
-        const nameWidth = Math.ceil(nameTh.getBoundingClientRect().width);
-        table.style.setProperty('--namecol', nameWidth + 'px');
-      }
+      const headRow=document.getElementById('tbl').tHead?.rows[0]; if(!headRow) return;
+      const serialized=headRow.querySelector('th.serialized'); const flagWidth=Math.max(90,serialized?Math.ceil(serialized.getBoundingClientRect().width):90);
+      document.getElementById('tbl').style.setProperty('--flagcol',flagWidth+'px');
+      const nomen=headRow.querySelector('th.nomenclature'); if(nomen){ const nameWidth=Math.ceil(nomen.getBoundingClientRect().width); document.getElementById('tbl').style.setProperty('--namecol',nameWidth+'px'); }
     }
 
-    function applyFilters(data){
-      const hideSmrX = document.getElementById('hideSmrX').checked;
-      if (hideSmrX && smrKey){
-        return data.filter(r=>{
-          const v = String(r[smrKey] ?? '');
-          return !v || v[0].toLowerCase() !== 'x';
-        });
-      }
-      return data;
+    function fitTable(){
+      const wrap=document.getElementById('tableWrap'); const scaleBox=document.getElementById('tableScale'); const tbl=document.getElementById('tbl');
+      const naturalWidth=tbl.scrollWidth; const available=wrap.parentElement.clientWidth; const scale=Math.min(1,available/naturalWidth);
+      scaleBox.style.transform=`scale(${scale})`; scaleBox.style.width=naturalWidth+'px'; scaleBox.style.height=(tbl.getBoundingClientRect().height*scale)+'px';
     }
+    window.addEventListener('resize',()=>{ fitTable(); });
 
-    function applyQuery(data, q){
-      if (!q) return data;
-      const ql = q.toLowerCase();
-      return data.filter(r => headers.some(h => String(r[h] ?? '').toLowerCase().includes(ql)));
-    }
+    function applyFilters(data){ const hide=document.getElementById('hideSmrX').checked; if(hide&&smrKey){ return data.filter(r=>{ const v=String(r[smrKey]??''); return !v||v[0].toLowerCase()!=='x'; }); } return data; }
+    function applyQuery(data,q){ if(!q)return data; const ql=q.toLowerCase(); return data.filter(r=>headers.some(h=>String(r[h]??'').toLowerCase().includes(ql))); }
+    function updateView(){ const q=document.getElementById('q').value.trim(); render(applyQuery(applyFilters(rows),q),q); }
 
-    function updateView(){
-      const q = document.getElementById('q').value.trim();
-      const afterFilter = applyFilters(rows);
-      const afterQuery = applyQuery(afterFilter, q);
-      render(afterQuery, q);
-    }
+    document.getElementById('q').addEventListener('input',debounce(updateView,200));
+    document.getElementById('hideSmrX').addEventListener('change',updateView);
 
-    document.getElementById('q').addEventListener('input', debounce(updateView, 200));
-    document.getElementById('hideSmrX').addEventListener('change', updateView);
-
-    Papa.parse(CSV_URL, {
-      download: true, header: true, worker: true, skipEmptyLines: true,
-      complete: (res) => {
-        rows = res.data;
-        headers = res.meta.fields || Object.keys(rows[0] || {});
-        smrKey = headers.find(h => norm(h) === 'smr') || null;
-        document.getElementById('meta').textContent = `Loaded ${rows.length.toLocaleString()} rows`;
-        upd
+    Papa.parse(CSV_URL,{download:true,header:true,worker:true,skipEmptyLines:true,
+      complete:(res)=>{ rows=res.data; headers=res.meta.fields||Object.keys(rows[0]||{}); smrKey=headers.find(h=>norm(h)==='smr')||null; document.getElementById('meta').textContent=`Loaded ${rows.length.toLocaleString()} rows`; updateView(); },
+      error:(err)=>{ document.getElementById('meta').textContent='Failed to load CSV: '+err; }
+    });
+  </script>
+</body>
+</html>
