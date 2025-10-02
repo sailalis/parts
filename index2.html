@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Parts Catalog Search</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; }
+    input { width: 100%; padding: 12px; font-size: 16px; }
+    .meta { margin: 8px 0 16px; color: #555; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border: 1px solid #ddd; padding: 8px; font-size: 14px; }
+    th { text-align: left; background: #f7f7f7; position: sticky; top: 0; }
+    .hit { background: #fffae6; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+  <h1>Parts Catalog Search</h1>
+  <input id="q" placeholder="Type to search any column…" autofocus />
+  <div class="meta" id="meta">Loading CSV…</div>
+  <table id="tbl">
+    <thead id="thead"></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+
+  <script>
+    // Config
+    const CSV_URL = 'partscatalog.csv'; // or 'sample.csv' while testing
+    const MAX_ROWS = 200;               // limit render for speed; adjust as needed
+
+    let rows = [];
+    let headers = [];
+
+    // Simple debounce
+    function debounce(fn, ms) {
+      let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+    }
+
+    // Highlight helper
+    function hi(text, q) {
+      if (!q) return text;
+      const i = text.toLowerCase().indexOf(q.toLowerCase());
+      if (i === -1) return text;
+      return text.substring(0, i) + '<span class="hit">' +
+             text.substring(i, i+q.length) + '</span>' +
+             text.substring(i+q.length);
+    }
+
+    // Render table
+    function render(data, q) {
+      const thead = document.getElementById('thead');
+      const tbody = document.getElementById('tbody');
+      if (thead.childElementCount === 0 && headers.length) {
+        const tr = document.createElement('tr');
+        headers.forEach(h => {
+          const th = document.createElement('th');
+          th.textContent = h;
+          tr.appendChild(th);
+        });
+        thead.appendChild(tr);
+      }
+      tbody.innerHTML = '';
+      data.slice(0, MAX_ROWS).forEach(r => {
+        const tr = document.createElement('tr');
+        headers.forEach(h => {
+          const td = document.createElement('td');
+          const val = String(r[h] ?? '');
+          td.innerHTML = hi(val, q);
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      const meta = document.getElementById('meta');
+      meta.textContent = `Showing ${Math.min(data.length, MAX_ROWS)} of ${data.length} matches` +
+                         (data.length > MAX_ROWS ? ' (refine to see more)' : '');
+    }
+
+    // Search across all columns
+    function search(q) {
+      if (!q) { render(rows, ''); return; }
+      const ql = q.toLowerCase();
+      const filtered = rows.filter(r =>
+        headers.some(h => String(r[h] ?? '').toLowerCase().includes(ql))
+      );
+      render(filtered, q);
+    }
+
+    // Wire input
+    document.getElementById('q').addEventListener('input', debounce(e => {
+      search(e.target.value.trim());
+    }, 200));
+
+    // Load CSV
+    Papa.parse(CSV_URL, {
+      download: true,
+      header: true,
+      worker: true,
+      skipEmptyLines: true,
+      complete: (res) => {
+        rows = res.data;
+        headers = res.meta.fields || Object.keys(rows[0] || {});
+        document.getElementById('meta').textContent =
+          `Loaded ${rows.length.toLocaleString()} rows`;
+        render(rows.slice(0, MAX_ROWS), '');
+      },
+      error: (err) => {
+        document.getElementById('meta').textContent = 'Failed to load CSV: ' + err;
+      }
+    });
+  </script>
+</body>
+</html>
