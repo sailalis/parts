@@ -11,28 +11,26 @@
 
     #app { display: flex; flex-direction: column; height: 100%; width: 100%; min-width: 0; }
 
-    header { flex: 0 0 auto; padding: 16px; background: #f7f7f7; border-bottom: 1px solid #e5e5e5; }
-    header h1 { font-size: 20px; margin-bottom: 8px; }
-    input { width: 100%; padding: 12px; font-size: 16px; }
-    .meta { margin-top: 8px; color: #555; font-size: 14px; }
+    header { flex: 0 0 auto; padding: 12px; background: #f7f7f7; border-bottom: 1px solid #e5e5e5; }
+    header h1 { font-size: 18px; margin-bottom: 6px; }
+    input { width: 100%; padding: 10px; font-size: 14px; }
+    .meta { margin-top: 6px; color: #555; font-size: 12px; }
 
-    /* Scroll frame: no padding so sticky header sits at absolute top */
     main { flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; min-width: 0; background: #fff; padding: 0; }
 
     /* Table */
     table {
       width: 100%;
-      border-collapse: separate;   /* cleaner with sticky header */
+      border-collapse: separate;
       border-spacing: 0;
-      table-layout: auto;          /* auto-size columns based on content */
+      table-layout: auto;          /* auto-size columns */
       margin: 0;
     }
     th, td {
       border: 1px solid #ddd;
-      padding: 8px;
-      font-size: 14px;
+      padding: 6px;
+      font-size: 13px;
       vertical-align: top;
-      /* Allow wrapping so wide content doesn't force horizontal scroll */
       overflow-wrap: anywhere;
       word-break: normal;
       white-space: normal;
@@ -40,12 +38,25 @@
     thead th {
       position: sticky;
       top: 0;
-      background: #f7f7f7;         /* opaque so rows never show through */
+      background: #f7f7f7;
       z-index: 5;
-      box-shadow: 0 2px 0 #ddd;    /* visual divider under header */
-      margin: 0;                   /* ensure no gap above table body */
+      box-shadow: 0 2px 0 #ddd;
+      margin: 0;
     }
     .hit { background: #fffae6; }
+
+    /* Responsive adjustments */
+    @media (max-width: 900px) {
+      th, td { font-size: 12px; padding: 5px; }
+      header h1 { font-size: 16px; }
+      input { font-size: 13px; }
+    }
+
+    @media (max-width: 600px) {
+      th, td { font-size: 11px; padding: 4px; }
+      header h1 { font-size: 14px; }
+      input { font-size: 12px; padding: 8px; }
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
@@ -73,12 +84,10 @@
     let rows = [];
     let headers = [];
 
-    // Simple debounce
     function debounce(fn, ms) {
       let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
     }
 
-    // Highlight helper
     function hi(text, q) {
       if (!q) return text;
       const i = text.toLowerCase().indexOf(q.toLowerCase());
@@ -88,7 +97,6 @@
              text.substring(i+q.length);
     }
 
-    // Render table
     function render(data, q) {
       const thead = document.getElementById('thead');
       const tbody = document.getElementById('tbody');
@@ -112,12 +120,11 @@
         });
         tbody.appendChild(tr);
       });
-      const meta = document.getElementById('meta');
-      meta.textContent = `Showing ${Math.min(data.length, MAX_ROWS)} of ${data.length} matches` +
-                         (data.length > MAX_ROWS ? ' (refine to see more)' : '');
+      document.getElementById('meta').textContent =
+        `Showing ${Math.min(data.length, MAX_ROWS)} of ${data.length} matches` +
+        (data.length > MAX_ROWS ? ' (refine to see more)' : '');
     }
 
-    // Search across all columns
     function search(q) {
       if (!q) { render(rows, ''); return; }
       const ql = q.toLowerCase();
@@ -127,12 +134,10 @@
       render(filtered, q);
     }
 
-    // Wire input
     document.getElementById('q').addEventListener('input', debounce(e => {
       search(e.target.value.trim());
     }, 200));
 
-    // Load CSV
     Papa.parse(CSV_URL, {
       download: true,
       header: true,
