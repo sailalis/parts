@@ -10,14 +10,30 @@
 
     #app { display: flex; flex-direction: column; height: 100%; width: 100%; min-width: 0; }
 
-    header { flex: 0 0 auto; padding: 12px; background: #f7f7f7; border-bottom: 1px solid #e5e5e5; }
-    header h1 { font-size: 18px; margin-bottom: 6px; }
-    input { width: 100%; padding: 10px; font-size: 14px; }
-    .meta { margin-top: 6px; color: #555; font-size: 12px; }
+    header { 
+      flex: 0 0 auto; 
+      padding: 12px; 
+      background: #f7f7f7; 
+      border-bottom: 1px solid #e5e5e5; 
+      text-align: center; 
+    }
+    header h1 { font-size: 18px; margin-bottom: 8px; }
 
-    .filters { display: flex; gap: 12px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
-    .filters label { font-size: 13px; display: inline-flex; align-items: center; }
-    .filters input[type="checkbox"] { margin-right: 6px; }
+    .search-container {
+      display: inline-block;
+      text-align: center;
+    }
+    .search-container input {
+      padding: 10px;
+      font-size: 14px;
+      width: 260px; /* fixed width slightly wider than the header text */
+      max-width: 90%;
+    }
+
+    .filters { margin-top: 8px; font-size: 13px; text-align: center; }
+    .filters label { display: inline-flex; align-items: center; gap: 4px; }
+
+    .meta { margin-top: 6px; color: #555; font-size: 12px; text-align: center; }
 
     main { flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; min-width: 0; background: #fff; padding: 0; }
 
@@ -33,10 +49,9 @@
       padding: 6px;
       font-size: 13px;
       vertical-align: top;
-      overflow-wrap: anywhere;
-      word-break: normal;
-      white-space: normal;
+      white-space: nowrap;
     }
+    td.noun { white-space: normal; word-break: break-word; }
     thead th {
       position: sticky;
       top: 0;
@@ -47,14 +62,14 @@
     .hit { background: #fffae6; }
 
     @media (max-width: 900px) {
-      th, td { font-size: 12px; padding: 5px; }
+      th, td { font-size: 11px; padding: 4px; }
       header h1 { font-size: 16px; }
-      input { font-size: 13px; }
+      .search-container input { font-size: 13px; width: 220px; }
     }
     @media (max-width: 600px) {
-      th, td { font-size: 11px; padding: 4px; }
+      th, td { font-size: 9px; padding: 3px; }
       header h1 { font-size: 14px; }
-      input { font-size: 12px; padding: 8px; }
+      .search-container input { font-size: 11px; width: 180px; }
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
@@ -63,7 +78,9 @@
   <div id="app">
     <header>
       <h1>Alice Parts Catalog</h1>
-      <input id="q" placeholder="Start typing…" autofocus />
+      <div class="search-container">
+        <input id="q" placeholder="Start typing…" autofocus />
+      </div>
       <div class="filters">
         <label>
           <input type="checkbox" id="hideSmrX" />
@@ -103,7 +120,11 @@
       const tbody = document.getElementById('tbody');
       if (thead.childElementCount === 0 && headers.length) {
         const tr = document.createElement('tr');
-        headers.forEach(h => { const th = document.createElement('th'); th.textContent = h; tr.appendChild(th); });
+        headers.forEach(h => {
+          const th = document.createElement('th');
+          th.textContent = h;
+          tr.appendChild(th);
+        });
         thead.appendChild(tr);
       }
       tbody.innerHTML = '';
@@ -112,6 +133,7 @@
         headers.forEach(h => {
           const td = document.createElement('td');
           const val = String(r[h] ?? '');
+          if (h.toLowerCase() === 'noun') td.classList.add('noun');
           td.innerHTML = hi(val, q);
           tr.appendChild(td);
         });
@@ -157,7 +179,6 @@
       complete: (res) => {
         rows = res.data;
         headers = res.meta.fields || Object.keys(rows[0] || {});
-        // lock onto SMR column explicitly
         smrKey = headers.find(h => h.toLowerCase() === 'smr') || null;
         document.getElementById('meta').textContent = `Loaded ${rows.length.toLocaleString()} rows`;
         updateView();
